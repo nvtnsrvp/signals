@@ -14,7 +14,7 @@ def main():
     subreddit = reddit.subreddit('wallstreetbets')
     print("Fetching hot {limit} posts from r/{subreddit.display_name}")
 
-    tickers = tickers.Tickers()
+    ticker_db = tickers.Tickers()
 
     # TODO: Find the appropriate sort
     for submission in subreddit.hot(limit=limit):
@@ -28,11 +28,11 @@ def main():
             for comment in top_level_comment.replies:
                 if isinstance(comment, praw.models.MoreComments):
                     continue
-                tickers = []
+                tickers_found = []
                 for word in comment.body.split():
-                    if word.lower() in tickers.symbols:
-                        tickers.append(word)
-                print(f"Body: {comment.body} Ticker: {words}")
+                    if word.lower() in ticker_db.symbols:
+                        tickers_found.append(word)
+                print(f"Body: {comment.body} Tickers: {tickers_found}")
 
         submission.comments.replace_more(limit=None)
             
