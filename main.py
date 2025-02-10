@@ -2,6 +2,7 @@ import praw
 import tickers
 
 import config
+import models
 
 def main():
     # Create a Reddit instance
@@ -10,34 +11,35 @@ def main():
         client_secret=config.client_secret,
         user_agent=config.user_agent,
     )
-    limit = 1
+    submission_limit = config.submission_limit
+    run_id = 1
     subreddit = reddit.subreddit('wallstreetbets')
-    print("Fetching hot {limit} posts from r/{subreddit.display_name}")
+    print("Fetching hot {submission_limit} posts from r/{subreddit.display_name} run id {run_id}")
 
     ticker_db = tickers.Tickers()
 
+    mentions = []
     # TODO: Find the appropriate sort
-    for submission in subreddit.hot(limit=limit):
-        print(f"Title: {submission.title}")
-        print(f"Score: {submission.score}")
-        print(f"Id: {submission.id}")
-        print(f"URL: {submission.url}")
-        for top_level_comment in submission.comments:
-            if isinstance(top_level_comment, praw.models.MoreComments):
-                continue
-            for comment in top_level_comment.replies:
-                if isinstance(comment, praw.models.MoreComments):
-                    continue
-                tickers_found = []
-                for word in comment.body.split():
-                    if word.lower() in ticker_db.symbols:
-                        tickers_found.append(word)
-                print(f"Body: {comment.body} Tickers: {tickers_found}")
+    for submission in subreddit.hot(limit=submission_limit):
+        for word in submission.title.split():
+            if word.upper() in ticker_db.symbols:
+                print(f"Title: {submission.title} Tickers: {word}")
+                mentions.append(models.Mention.from_submission(submission, run_id, word.upper()))
 
         submission.comments.replace_more(limit=None)
-            
-        
-        
+        for comment in submission.comments.list():
+            if isinstance(comment, praw.models.MoreComments):
+                # TODO: Handle MoreComments
+                raise Exception("MoreComments not handled")
+            for word in comment.body.split():
+                if word.upper() in ticker_db.symbols:
+                    print(f"Comment body: {comment.body} Tickers: {word}")
+                    mentions.append(models.Mention.from_comment(comment, run_id, word.upper()))
+
+    print(f"Found {len(mentions)} mentions")
+
+    # TODO: If mentioned, store that in the database.
+
 
 if __name__ == "__main__":
     main()
