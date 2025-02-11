@@ -1,6 +1,6 @@
 import praw
-import tickers
 
+import tickers
 import config
 import models
 
@@ -14,13 +14,13 @@ def main():
     submission_limit = config.submission_limit
     run_id = 1
     subreddit = reddit.subreddit('wallstreetbets')
-    print("Fetching hot {submission_limit} posts from r/{subreddit.display_name} run id {run_id}")
+    print("Fetching new {submission_limit} posts from r/{subreddit.display_name} run id {run_id}")
 
     ticker_db = tickers.Tickers()
 
     mentions = []
     # TODO: Find the appropriate sort
-    for submission in subreddit.hot(limit=submission_limit):
+    for submission in subreddit.new(limit=submission_limit):
         for word in submission.title.split():
             if word.upper() in ticker_db.symbols:
                 print(f"Title: {submission.title} Tickers: {word}")
