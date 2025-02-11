@@ -12,7 +12,10 @@ def main():
         user_agent=config.user_agent,
     )
     submission_limit = config.submission_limit
+
+    # TODO: query run id from database
     run_id = 1
+
     subreddit = reddit.subreddit('wallstreetbets')
     print("Fetching new {submission_limit} posts from r/{subreddit.display_name} run id {run_id}")
 
