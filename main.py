@@ -1,8 +1,9 @@
 import praw
 
-import tickers
 import config
 import models
+import postgres
+import tickers
 
 def main():
     # Create a Reddit instance
@@ -13,8 +14,10 @@ def main():
     )
     submission_limit = config.submission_limit
 
-    # TODO: query run id from database
-    run_id = 1
+    postgre = postgres.PostgresConnection()
+    postgre.init_database()
+
+    run_id = postgre.insert_run(submission_limit)
 
     subreddit = reddit.subreddit('wallstreetbets')
     print("Fetching new {submission_limit} posts from r/{subreddit.display_name} run id {run_id}")
@@ -41,8 +44,9 @@ def main():
 
     print(f"Found {len(mentions)} mentions")
 
-    # TODO: If mentioned, store that in the database.
-
+    # TODO: When each batch of posts is fetched, asynchronously insert mentions.
+    postgre.insert_mentions(mentions)
+    
 
 if __name__ == "__main__":
     main()
