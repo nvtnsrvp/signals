@@ -1,6 +1,6 @@
 # Description: Configuration file for the project
 
-submission_limit = 10
+limit = 10
 
 # Praw
 

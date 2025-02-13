@@ -5,48 +5,55 @@ import models
 import postgres
 import tickers
 
-def main():
-    # Create a Reddit instance
-    reddit = praw.Reddit(
-        client_id=config.client_id,
-        client_secret=config.client_secret,
-        user_agent=config.user_agent,
-    )
-    submission_limit = config.submission_limit
+class Reddit:
+    def __init__(self, database: postgres.PostgresConnection, limit: int):
+        # Create a Reddit instance
+        self.reddit = praw.Reddit(
+            client_id=config.client_id,
+            client_secret=config.client_secret,
+            user_agent=config.user_agent,
+        )
+        self.submission_limit = limit
+        self.db = database
+        self.ticker_db = tickers.Tickers()
 
+    def extract_symbols(self, text: str):
+        for word in text.split():
+            if word.upper() in self.ticker_db.symbols:
+                print(f"Text: {text} Tickers: {word}")
+                yield word.upper()
+
+    def run(self):
+        subreddit = self.reddit.subreddit('wallstreetbets')
+        run_id = self.db.insert_run(self.submission_limit)
+        print("Fetching new {self.submission_limit} posts from r/{subreddit.display_name} run id {run_id}")
+
+        mentions = []
+        # TODO: Find the appropriate sort
+        for submission in subreddit.new(limit=self.submission_limit):
+            for symbol in self.extract_symbols(submission.title):
+                mentions.append(models.Mention.from_submission(submission, run_id, symbol))
+
+            submission.comments.replace_more(limit=None)
+            for comment in submission.comments.list():
+                if isinstance(comment, praw.models.MoreComments):
+                    # TODO: Handle MoreComments
+                    raise Exception("MoreComments not handled")
+                for symbol in self.extract_symbols(comment.body):
+                    mentions.append(models.Mention.from_comment(comment, run_id, symbol))
+        print(f"Found {len(mentions)} mentions")
+
+        # TODO: When each batch of posts is fetched, asynchronously insert mentions.
+        self.db.insert_mentions(mentions)
+
+
+def main():
     postgre = postgres.PostgresConnection()
     postgre.init_database()
 
-    run_id = postgre.insert_run(submission_limit)
+    reddit = Reddit(postgre, config.limit)
+    reddit.run()
 
-    subreddit = reddit.subreddit('wallstreetbets')
-    print("Fetching new {submission_limit} posts from r/{subreddit.display_name} run id {run_id}")
-
-    ticker_db = tickers.Tickers()
-
-    mentions = []
-    # TODO: Find the appropriate sort
-    for submission in subreddit.new(limit=submission_limit):
-        for word in submission.title.split():
-            if word.upper() in ticker_db.symbols:
-                print(f"Title: {submission.title} Tickers: {word}")
-                mentions.append(models.Mention.from_submission(submission, run_id, word.upper()))
-
-        submission.comments.replace_more(limit=None)
-        for comment in submission.comments.list():
-            if isinstance(comment, praw.models.MoreComments):
-                # TODO: Handle MoreComments
-                raise Exception("MoreComments not handled")
-            for word in comment.body.split():
-                if word.upper() in ticker_db.symbols:
-                    print(f"Comment body: {comment.body} Tickers: {word}")
-                    mentions.append(models.Mention.from_comment(comment, run_id, word.upper()))
-
-    print(f"Found {len(mentions)} mentions")
-
-    # TODO: When each batch of posts is fetched, asynchronously insert mentions.
-    postgre.insert_mentions(mentions)
-    
 
 if __name__ == "__main__":
     main()
