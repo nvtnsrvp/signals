@@ -1,8 +1,10 @@
-import contextlib
 import psycopg2
+
+from typing import List
 
 import config
 import models
+
 
 class PostgresConnection:
     """Manages a connection to a PostgreSql database using psycopg2."""
@@ -63,7 +65,6 @@ class PostgresConnection:
                 if row:
                     return row[0]
                 
-    from typing import List
 
     def insert_mentions(self, mentions: List[models.Mention]) -> None:
         insert_mention_query = """
@@ -76,3 +77,16 @@ class PostgresConnection:
                     cursor.execute(insert_mention_query, (mention.id, mention.symbol, mention.author, mention.is_submission))
                 conn.commit()
                 print(f"Inserted {len(mentions)} mentions")
+
+if __name__ == "__main__":
+    postgre = PostgresConnection()
+    postgre.init_database()
+    run_id = postgre.insert_run(config.submission_limit)
+    print(f"Inserted run id {run_id}")
+
+    mentions = [
+        models.Mention("author1", "id", run_id, "NAVI", is_submission=True),
+        models.Mention("author2", "id", run_id, "NAVI")
+    ]
+    postgre.insert_mentions(mentions)
+    print("Inserted mentions")
